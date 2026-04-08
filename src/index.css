@@ -1,0 +1,686 @@
+/* =============================================
+   SISTEMA DE GESTIÓN TÉCNICA - EARTH TONES UI
+   ============================================= */
+
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+:root {
+  /* 
+    User Palette Reference:
+    Beige:           #D4CEC2
+    Gris claro:      #C9C6BF
+    Gris medio:      #8A8F8E
+    Gris oscuro:     #4A4F52
+    Amarillo:        #F2C94C
+    Mostaza:         #D39A3A
+    Naranja quemado: #C8742C
+  */
+
+  /* Base Colors */
+  --c-beige: #D4CEC2;
+  --c-gray-light: #C9C6BF;
+  --c-gray-med: #8A8F8E;
+  --c-gray-dark: #4A4F52;
+  --c-yellow: #F2C94C;
+  --c-mustard: #D39A3A;
+  --c-orange: #C8742C;
+
+  /* Functional Mapping */
+  --primary: var(--c-gray-dark);       /* Headings, Main Text */
+  --primary-light: var(--c-gray-med);  /* Secondary Text */
+  
+  --accent: var(--c-orange);           /* Primary Actions (Submit), Focus */
+  --accent-hover: #b06222;             /* Darker Orange */
+  --accent-soft: #fff7ed;              /* Very light orange tint for backgrounds */
+
+  --secondary: var(--c-mustard);       /* Secondary Actions (Save) */
+  --highlight: var(--c-yellow);        /* Icons, Accents */
+
+  /* Backgrounds */
+  --bg-main: #f9f8f6;                  /* Warm Off-White */
+  --bg-card: #ffffff;
+  
+  --text-main: var(--c-gray-dark);
+  --text-sec: var(--c-gray-med);
+  --text-light: #aeb3b3;
+
+  --border: var(--c-beige);
+  --border-focus: var(--c-mustard);
+
+  /* Status Colors (Adhering to palette vibe where possible, but keeping utility green/red for function) */
+  --success: #10b981; 
+  --danger: #ef4444; 
+
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(74 79 82 / 0.1), 0 2px 4px -2px rgb(74 79 82 / 0.1);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+}
+
+/* ============================================= */
+/* GLOBAL RESET & BASE */
+/* ============================================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  line-height: 1.5;
+  min-height: 100vh;
+  font-size: 14px;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ============================================= */
+/* TYPOGRAPHY */
+/* ============================================= */
+
+h1, h2, h3 {
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.01em;
+}
+
+h1 {
+  font-size: 1.35rem;
+  margin-bottom: 0.5rem;
+  color: var(--c-orange); /* Brand Highlight */
+}
+
+h2 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+  color: var(--primary);
+  border-bottom: 2px solid var(--c-beige);
+  padding-bottom: 0.5rem;
+  display: inline-block;
+}
+
+h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--primary-light);
+}
+
+p {
+  color: var(--text-sec);
+  font-size: 0.85rem;
+}
+
+/* ============================================= */
+/* HEADER & NAVIGATION */
+/* ============================================= */
+
+header {
+  background: var(--bg-card);
+  padding: 18px 14px;
+  border-radius: var(--radius-lg);
+  text-align: center;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+header h1 {
+  font-size: 1.2rem;
+  color: var(--c-mustard); /* Soft Mustard as requested */
+}
+
+header p {
+  font-size: 0.8rem;
+  color: var(--c-gray-med);
+}
+
+/* ... existing code ... */
+
+/* ============================================= */
+/* CUADRILLA DISPLAY - NEW STYLES */
+/* ============================================= */
+.cuadrilla-display {
+  margin-top: 14px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background-color: var(--accent-soft);
+  border: 1px dashed var(--c-mustard);
+  border-radius: var(--radius-sm);
+  color: var(--c-orange);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  font-family: inherit;
+  box-shadow: var(--shadow-sm);
+  animation: fadeIn 0.3s ease;
+}
+
+.btn-volver {
+  align-self: flex-start;
+  order: -1;
+  margin-bottom: 10px;
+  background: transparent;
+  color: var(--c-gray-med);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.btn-volver:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* ============================================= */
+/* MENU GRID (MOBILE OPTIMIZED) */
+/* ============================================= */
+
+.menu-section {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.menu-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.menu-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.menu-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 10px;
+  text-align: center;
+  height: 100%;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100px;
+}
+
+.menu-card:active {
+  transform: scale(0.98);
+  background: var(--bg-main);
+  border-color: var(--c-mustard);
+}
+
+.menu-icon {
+  width: 44px;
+  height: 44px;
+  background: var(--accent-soft);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  color: var(--c-mustard);
+  border: 1px solid var(--c-beige);
+  font-size: 1.25rem;
+}
+
+.menu-card h3 {
+  font-size: 0.85rem;
+  margin-bottom: 2px;
+  line-height: 1.25;
+  color: var(--c-gray-dark);
+}
+
+.menu-card p {
+  display: none;
+}
+
+/* ============================================= */
+/* FORMS */
+/* ============================================= */
+
+.formulario {
+  padding-bottom: 80px;
+  animation: slideUp 0.4s ease-out;
+}
+
+.form-section {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 18px 14px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--c-gray-dark);
+  font-size: 0.8rem;
+}
+
+.required::after {
+  content: "*";
+  color: var(--c-orange); /* Use Orange for required asterisk */
+  margin-left: 2px;
+}
+
+input, select, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 14px;
+  background: #fdfdfc;
+  color: var(--text-main);
+  transition: all 0.2s;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--c-mustard);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px rgba(211, 154, 58, 0.15); /* Soft Mustard Glow */
+}
+
+/* Conditional Field Style */
+.conditional-field {
+  background: var(--accent-soft);
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border-left: 4px solid var(--c-mustard);
+  margin-top: 10px;
+}
+
+/* Radio Groups */
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-group > label {
+  display: flex;
+  align-items: center;
+  background: #fdfdfc;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--c-gray-med);
+  transition: all 0.2s;
+}
+
+.radio-group > label:hover {
+  background: var(--bg-main);
+  border-color: var(--c-gray-light);
+}
+
+.radio-group > label:active {
+  background: var(--accent-soft);
+  border-color: var(--c-mustard);
+  color: var(--c-orange);
+}
+
+input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  accent-color: var(--c-orange);
+}
+
+/* ============================================= */
+/* BUTTONS */
+/* ============================================= */
+
+.buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+button, .btn-submit, .btn-guardar, .btn-copiar {
+  width: 100%;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.1s, background 0.2s;
+}
+
+button:active {
+  transform: scale(0.98);
+}
+
+.btn-submit {
+  background: var(--c-orange); /* Burnt Orange for primary submit */
+  color: white;
+}
+
+.btn-submit:hover {
+  background: var(--accent-hover);
+}
+
+.btn-guardar {
+  background: var(--c-mustard); /* Mustard for Save */
+  color: white;
+}
+
+.btn-guardar:hover {
+  background: #bf8b33; 
+}
+
+.btn-guardar:disabled {
+  background: var(--c-gray-light);
+  color: var(--c-gray-dark);
+  opacity: 0.8;
+  cursor: not-allowed;
+}
+
+.btn-copiar {
+  background: white;
+  color: var(--c-gray-dark);
+  border: 2px solid var(--c-beige);
+  margin-bottom: 12px;
+}
+
+.btn-copiar:hover {
+  border-color: var(--c-mustard);
+  color: var(--c-mustard);
+}
+
+.btn-copiar.copiado {
+  background: var(--success);
+  color: white;
+  border-color: var(--success);
+}
+
+/* ============================================= */
+/* SUMMARY / RESULTS */
+/* ============================================= */
+
+.resumen {
+  margin-top: 24px;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.success-message {
+  background: #f0fdf4;
+  color: #15803d;
+  padding: 14px 16px;
+  text-align: center;
+  border-bottom: 1px solid #dcfce7;
+}
+
+.success-message h2 {
+  font-size: 1.1rem;
+  color: #15803d;
+  margin-bottom: 4px;
+  border: none;
+}
+
+.resumen-content {
+  background: #fdfdfc;
+  padding: 14px 16px;
+  margin: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1px dashed var(--c-gray-light);
+  font-family: monospace;
+  font-size: 0.8rem;
+  color: var(--c-gray-dark);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* ============================================= */
+/* SEARCH & HELPERS */
+/* ============================================= */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(15px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Datalist Icon */
+input[list] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23C8742C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-position: right 14px center;
+  background-size: 16px;
+  background-repeat: no-repeat;
+}
+
+/* ============================================= */
+/* MEDIA QUERY: DESKTOP TWEAKS */
+/* ============================================= */
+
+@media (min-width: 768px) {
+  .menu-options {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .menu-card {
+    padding: 20px 16px;
+  }
+
+  .menu-card p {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8rem;
+  }
+
+  .buttons {
+    flex-direction: row;
+    justify-content: flex-end;
+  }
+
+  button {
+    width: auto;
+  }
+}
+
+/* ============================================= */
+/* CALCULO PRE - RESULT FIELDS */
+/* ============================================= */
+
+.pre-wrapper {
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 12px 10px;
+}
+
+.pre-bar {
+  width: 100%;
+  background: #4b4b4b;
+  color: #f9fafb;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 5px 8px;
+  margin: -4px -4px 10px;
+}
+
+.pre-title {
+  font-weight: 800;
+  font-size: 0.95rem; /* Reducido de 1.05rem para celular */
+  letter-spacing: -0.02em;
+  color: #1d4ed8;
+  margin-bottom: 10px;
+}
+
+.form-group.pre-row {
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.form-group.pre-row label {
+  font-weight: 500;
+  color: #9ca3af;
+  font-size: 0.75rem; /* Reducido de 0.85rem */
+  margin-bottom: 4px;
+  display: block;
+}
+
+.form-group.pre-row input,
+.form-group.pre-row select,
+.form-group.pre-row textarea,
+.form-group.pre-row .norma-pill {
+  width: 100%;
+}
+
+.form-group.pre-row input {
+  padding: 8px 0 4px 0;
+  border: none;
+  border-bottom: 1px solid #9ca3af;
+  border-radius: 0;
+  font-size: 0.85rem; /* Reducido de 0.95rem */
+  background-color: transparent !important;
+  color: #374151;
+  box-shadow: none !important;
+}
+
+.form-group.pre-row input::placeholder {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.form-group.pre-row input:focus {
+  border-bottom: 2px solid var(--c-mustard);
+  outline: none;
+  background-color: transparent !important;
+}
+
+.resumen-pre-line {
+  font-size: 0.75rem; /* Reducido de 0.85rem */
+  color: #111827;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.resumen-pre-line span {
+  font-weight: 700;
+}
+
+.pre-buttons {
+  margin-top: 32px;
+}
+
+.btn-calc-large {
+  width: 100%;
+  background-color: #d1d5db; /* Gris claro */
+  color: #111827;
+  border: none;
+  border-radius: 4px;
+  padding: 14px;
+  font-weight: 600;
+  font-size: 0.9rem; /* Reducido de 1rem */
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+
+.pre-buttons-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.pre-buttons-row .btn-menu,
+.pre-buttons-row .btn-limpiar {
+  background-color: #e5e7eb; /* Gris claro */
+  color: #111827;
+  border: none;
+  border-radius: 4px;
+  padding: 12px;
+  font-weight: 600;
+  font-size: 0.9rem; /* Reducido de 1rem */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.result-input {
+  background: #9ca3af !important; /* gris similar al ejemplo */
+  color: #111827 !important;
+  font-weight: 700;
+  text-align: right;
+}
+
+.pre-result {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.norma-pill {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 0;
+  border: none;
+  background: #f3f4f6;
+  color: #111827;
+  font-weight: 700;
+  text-align: left;
+  font-size: 0.9rem; /* Reducido de 1.1rem */
+  text-transform: uppercase;
+}
+
+.norma-pill.pass {
+  background: #ff8c00; /* naranja */
+  color: #000;
+}
+
+.norma-pill.fail {
+  background: #fee2e2; /* rojo suave */
+  border-color: #ef4444;
+  color: #991b1b;
+}

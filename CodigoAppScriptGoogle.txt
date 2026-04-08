@@ -1,0 +1,383 @@
+// Google Apps Script - Sistema Técnico Completo
+const SHEET_ID = '18FhKZKdwUjFkt2N9cnTfeCwIk2W6e0n-AHI7CdIaJXI'; 
+// Datos de precios para items de cobro (Reconexión + Mantenimiento)
+const itemsCobroData = [
+    // --- RECONEXIÓN ---
+    { nombre: "Corte del servicio", precio: 0 },
+    { nombre: "Reduccion de caudal", precio: 1.63 },
+    { nombre: "Verificación de corte recuperación de cartera", precio: 0 },
+    { nombre: "Reconexion de servicio (sencillas)", precio: 3.88 },
+    { nombre: "Reconexion efectiva 1-5 meses", precio: 4.14 },
+    { nombre: "Reconexion efectiva 6-10 meses", precio: 8.17 },
+    { nombre: "Reconexion efectiva 11-15 meses", precio: 13.65 },
+    { nombre: "Reconexion efectiva 16-24 meses", precio: 20.17 },
+    { nombre: "Reconexion efectiva 25-40 meses", precio: 29.66 },
+    { nombre: "Reconexion efectiva 41-50 meses", precio: 47.27 },
+    { nombre: "Reconexion efectiva 51-60 meses", precio: 64.90 },
+    { nombre: "Reconexion efectiva 61-80 meses", precio: 96.73 },
+    { nombre: "Reconexion efectiva >= 81 meses", precio: 128.56 },
+    { nombre: "Reubicación por corte y reconexion", precio: 19.33 },
+    { nombre: "Mantenimiento corte y reconexión", precio: 3.33 },
+    { nombre: "Reactivacion del caudal", precio: 1.65 },
+    { nombre: "Verificación de corte integral", precio: 33.51 },
+    { nombre: "Cierre definitivo en sitio por depuracion", precio: 33.19 },
+    
+    // --- MANTENIMIENTO ---
+    { nombre: "Mantenimiento – Cambio de cajetín", precio: 10.07 },
+    { nombre: "Mantenimiento – Cambio de medidor", precio: 4.78 },
+    { nombre: "Mantenimiento – Mantenimiento en sitio", precio: 3.31 },
+    { nombre: "Mantenimiento – Reposición de medidor", precio: 7.16 },
+    { nombre: "Mantenimiento – Revisión de medidor y accesorios", precio: 10.69 },
+    { nombre: "Mantenimiento – Reconexión de cierre temporal 1/2” a 1”", precio: 4.09 },
+    { nombre: "Mantenimiento Cambio – Cambio de medidores por plan masivo", precio: 4.05 },
+    { nombre: "Mantenimiento FES – Cambio de cajetín por FES", precio: 10.07 },
+    { nombre: "Mantenimiento FES – Cambio de medidor FES", precio: 4.78 },
+    { nombre: "Mantenimiento FES – Cambio e instalación medidor por defraudación FES", precio: 5.06 },
+    { nombre: "Mantenimiento FES – Pérdida no operacional por FES", precio: 1.72 },
+    { nombre: "Mantenimiento – Actualización datos DGM", precio: 1.87 }
+];
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    const tipo = data.tipo;
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    
+    if (tipo === 'residencial' || tipo === 'comercial') {
+      // ========== ANÁLISIS ==========
+      const sheet = ss.getSheetByName('Residencial_Comercial');
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow(['Fecha', 'Tipo', 'Contrato', 'Servicio', 'Estado del medidor', 'Especificación estado', 'Número modificación', 'Lectura (m³)', 'Lectura (litros)', 'Descripción', 'Personas/Empleados', 'Actividad', 'Abastecimiento', 'Especificación abastecimiento', 'Info adicional 1', 'Info adicional 2', 'Caudal ingreso', 'Cantidad caudal', 'Prueba consumo', 'Razón prueba', 'Motivo no permite', 'Otra razón', 'Fugas detectadas', 'Puntos agua no', 'Puntos agua si', 'Ubicación fuga', 'Persona atendió', 'Observación']);
+      }
+      const fecha = new Date();
+      const rowData = [fecha, tipo, data.contrato, data.servicio, data.estado_medidor, data.estado_medidor_otro, data.numero_modificacion, data.lectura_m3, data.lectura_litros, data.descripcion];
+      if (tipo === 'residencial') rowData.push(data.personas, '', data.abastecimiento, data.abastecimiento_otro, data.cambios_habitantes, '');
+      else rowData.push(data.empleados, data.actividad, data.abastecimiento, data.abastecimiento_otro, data.horarios_especificos, data.horario || data.tipo_consumo);
+      rowData.push(data.caudal_ingreso, data.caudal_cantidad, data.prueba_consumo, data.prueba_razon, data.motivo_no_permite, data.otra_razon, data.fugas_detectadas, data.puntos_agua_no, data.puntos_agua_si, data.ubicacion_fuga_detalle, data.persona_atendio, data.observacion);
+      sheet.appendRow(rowData);
+      
+    } else if (tipo === 'reconexion') {
+      // ========== RECONEXIÓN ==========
+      const sheet = ss.getSheetByName('Reconexion');
+      if (!sheet) ss.insertSheet('Reconexion'); // Prevenir error si no existe
+      
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow(['Fecha', 'Contrato', 'Cuadrilla', 'Supervisor', 'Obrero', 'Servicio', 'Medidor', 'Motivo medidor', 'Lectura', 'Litros', 'Cajetin', 'Tipo daño cajetin', 'Tipo llave', 'Llave corte', 'Motivo llave corte', 'Llave paso', 'Motivo llave paso', 'Medio nudo', 'Accesorio medio nudo', 'Tipo reconexion', 'Predio', 'Color', 'Perno', 'Motivo perno', 'Item cobro', 'Precio Item', 'Observación']);
+      }
+      
+      const cuadrillaCompleta = construirCuadrilla(data);
+      const { supervisor, obrero } = separarCuadrilla(cuadrillaCompleta);
+      const precioItem = obtenerPrecio(data.item_cobro);
+      
+      const fecha = new Date();
+      const rowData = [
+        fecha, data.contrato, cuadrillaCompleta, supervisor, obrero, 
+        data.servicio, data.medidor, data.medidor_razon, data.lectura, data.litros, 
+        data.cajetin, data.cajetin_tipo_dano, data.tipo_llave, data.llave_corte, data.llave_corte_razon, 
+        data.llave_paso, data.llave_paso_razon, data.medio_nudo, data.medio_nudo_accesorio, 
+        data.reconexion, data.predio, data.color, data.perno, data.perno_razon, 
+        data.item_cobro, precioItem, data.observacion
+      ];
+      sheet.appendRow(rowData);
+      
+    } else if (tipo === 'mantenimiento') {
+      // ========== MANTENIMIENTO (NUEVA HOJA) ==========
+      let sheet = ss.getSheetByName('Mantenimiento');
+      if (!sheet) sheet = ss.insertSheet('Mantenimiento');
+      
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow([
+          'Fecha', 'Contrato', 'Cuadrilla', 'Supervisor', 'Obrero', 
+          'Numero Medidor', 'Estado Medidor', 'Problema Medidor', 'Lectura (m³)', 'Litros', 
+          'Cajetin', 'Daño Cajetin', 'Tipo llave', 'Llave corte', 'Estado Llave Corte', 
+          'Llave paso', 'Estado Llave Paso', 
+          'Tareas: Litros Cambio', 'Tareas: Sello Valija', 'Tareas: Notificación',
+          'Predio', 'Color', 'Perno', 'Razón Perno', 
+          'Item cobro', 'Precio Item', 'Observación'
+        ]);
+      }
+      
+      const cuadrillaCompleta = construirCuadrilla(data);
+      const { supervisor, obrero } = separarCuadrilla(cuadrillaCompleta);
+      const precioItem = obtenerPrecio(data.item_cobro);
+      const fecha = new Date();
+      const rowData = [
+        fecha, data.contrato, cuadrillaCompleta, supervisor, obrero,
+        data.numero_medidor, data.medidor, data.medidor_problema === 'otro' ? data.medidor_problema_otro_texto : (data.medidor_problema || ''), 
+        data.lectura, data.litros,
+        data.cajetin, data.cajetin_tipo_dano, 
+        data.tipo_llave, data.llave_corte, data.llave_corte, // Llave corte se usa doble por simplicidad en estructura original? No, ajustado a estructura.
+        data.llave_paso, data.llave_paso, // Ajustado
+        data.tarea_cambio_litros, data.tarea_sello_valija, data.tarea_notificacion,
+        data.predio, data.color, data.perno, data.perno_razon,
+        data.item_cobro, precioItem, data.observacion
+      ];
+      sheet.appendRow(rowData);
+    } else if (tipo === 'generacion_ordenes') {
+      // ========== GENERACIÓN DE ORDENES ==========
+      let sheet = ss.getSheetByName('Generacion_Ordenes');
+      if (!sheet) sheet = ss.insertSheet('Generacion_Ordenes');
+
+      if (sheet.getLastRow() === 0) {
+        sheet.appendRow([
+          'Fecha', 'Correo', 'Tipo Tarea', 'N° Orden', 'Producto', 
+          'Contrato', 'Tipo Orden', 'Area Personal', 'Persona Solicita', 
+          'Operador', 'Observación', 'Enlace Evidencia'
+        ]);
+      }
+      
+      
+      // Manejo de Imagenes (Múltiples)
+      let fileUrl = '';
+      const imagenesProcesar = data.imagenes || (data.imagen ? [data.imagen] : []);
+
+      if (imagenesProcesar.length > 0) {
+        try {
+          // Usar carpeta específica proporcionada por el usuario
+          // ID: 1qa6VjYUlG1AC-Ds-VR8YVe34ctDy-rPs
+          const folderId = "1qa6VjYUlG1AC-Ds-VR8YVe34ctDy-rPs";
+          const parentFolder = DriveApp.getFolderById(folderId);
+          
+          // Buscar o crear carpeta del contrato (Lógica igual a VCO_App)
+          const nombreCarpetaContrato = data.contrato.toString();
+          const folders = parentFolder.getFoldersByName(nombreCarpetaContrato);
+          let folderContrato;
+          
+          if (folders.hasNext()) {
+            folderContrato = folders.next();
+          } else {
+            folderContrato = parentFolder.createFolder(nombreCarpetaContrato);
+          }
+          
+          const uploadedUrls = [];
+          
+          imagenesProcesar.forEach((imgData, index) => {
+              // Decodificar Base64
+              let base64 = imgData;
+              if (base64.includes(',')) {
+                 base64 = base64.split(',')[1];
+              }
+              const blob = Utilities.base64Decode(base64);
+              const fileName = `Evidencia_${data.contrato}_${new Date().getTime()}_${index + 1}.jpg`;
+              const imageBlob = Utilities.newBlob(blob, 'image/jpeg', fileName);
+              
+              const file = folderContrato.createFile(imageBlob);
+              file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); 
+              uploadedUrls.push(file.getUrl());
+          });
+          
+          fileUrl = uploadedUrls.join("\n"); // Unir URLs con salto de línea
+
+        } catch (e) {
+          fileUrl = "Error subiendo imagen: " + e.toString();
+        }
+      }
+
+      const fecha = new Date();
+      // Nueva fila (se calcula donde caerá)
+      const nextRow = sheet.getLastRow() + 1;
+      
+      // Columnas:
+      // A: Fecha, B: Celular (antes Correo), C: Tipo Tarea, D: N° Orden
+      // ... L: Evidencia, M: Orden Generada (Manual), N: Link WhatsApp (Formula)
+      
+      
+      // Formula: Si N no está vacía (Orden Generada manualmente), genera link WhatsApp
+      // Columnas desplazadas por nuevo campo "Unidad Trabajo" en Columna J
+      // A: Fecha, B: Celular, C: Tarea, D: Orden, E: Producto, F: Contrato, G: Tipo Orden
+      // H: Area, I: Solicita, J: Unidad Trabajo, K: Operador, L: Observacion, M: Evidencia
+      // N: Orden Generada (Manual), O: Link
+      
+      const mensaje = `"SOLICITUD DE GENERACIÓN DE ORDEN" & CHAR(10) & ` +
+                      `"---------------------------------" & CHAR(10) & ` +
+                      `"Celular Contacto: " & B${nextRow} & CHAR(10) & ` +
+                      `"Tipo de Tarea: " & C${nextRow} & CHAR(10) & ` +
+                      `"N° Orden Base: " & D${nextRow} & CHAR(10) & ` +
+                      `"Producto: " & E${nextRow} & CHAR(10) & ` +
+                      `"Contrato: " & F${nextRow} & CHAR(10) & ` +
+                      `"Tipo de Orden Solicitada: " & G${nextRow} & CHAR(10) & ` +
+                      `"Área de Personal: " & H${nextRow} & CHAR(10) & ` +
+                      `"Solicitado por: " & I${nextRow} & CHAR(10) & ` +
+                      `"Unidad de Trabajo: " & J${nextRow} & CHAR(10) & ` +
+                      `"Operador: " & K${nextRow} & CHAR(10) & ` +
+                      `"Observación: " & L${nextRow} & CHAR(10) & ` +
+                      `"Orden generada: " & N${nextRow}`;
+
+      
+      // GENERACIÓN DE DOS ENLACES (APP y WEB)
+      // 1. Enlace Universal (Intenta abrir App): https://api.whatsapp.com/send
+      const formulaApp = `=IF(N${nextRow}<>"", HYPERLINK("https://api.whatsapp.com/send?phone=593" & RIGHT(B${nextRow}, 9) & "&text=" & ENCODEURL(${mensaje}), "📲 Enviar WhatsApp por App"), "Esperando...")`;
+
+      // 2. Enlace Directo Web (Fuerza WhatsApp Web): https://web.whatsapp.com/send
+      const formulaWeb = `=IF(N${nextRow}<>"", HYPERLINK("https://web.whatsapp.com/send?phone=593" & RIGHT(B${nextRow}, 9) & "&text=" & ENCODEURL(${mensaje}), "🌐 Enviar WhatsApp por Web"), "Esperando...")`;
+
+      const rowData = [
+        fecha, "'" + data.celular, data.tipo_tarea, "'" + data.numero_orden, data.producto, 
+        "'" + data.contrato, data.tipo_orden, data.area_personal, data.persona_solicita,
+        "'" + data.unidad_trabajo, // Nuevo campo
+        data.operador, data.observacion, fileUrl, "", formulaApp, formulaWeb
+      ];
+      sheet.appendRow(rowData);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ success: true, message: `✅ Datos ${tipo} guardados` })).setMimeType(ContentService.MimeType.JSON);
+  } catch (error) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: error.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+// Función temporal para forzar permisos (EJECUTAR ESTA MANUALMENTE UNA VEZ)
+function autorizarScript() {
+  const folderId = "1qa6VjYUlG1AC-Ds-VR8YVe34ctDy-rPs";
+  DriveApp.getFolderById(folderId);
+  console.log("Permisos de Drive autorizados correctamente.");
+}
+// Helpers
+function construirCuadrilla(data) {
+    if (data.cuadrilla) return data.cuadrilla;
+    if (data.supervisor && data.obrero) return `${data.supervisor} / ${data.obrero}`;
+    return '';
+}
+function separarCuadrilla(cuadrillaStr) {
+    let supervisor = '', obrero = '';
+    if (cuadrillaStr && cuadrillaStr.includes(' / ')) {
+        const partes = cuadrillaStr.split(' / ');
+        supervisor = partes[0] || '';
+        obrero = partes[1] || '';
+    }
+    return { supervisor, obrero };
+}
+function obtenerPrecio(nombreItem) {
+    const item = itemsCobroData.find(i => i.nombre === nombreItem);
+    return item ? item.precio : 0;
+}
+function doGet(e) {
+  const action = e.parameter.action;
+  
+  if (action === 'resumen_presupuesto') {
+    return obtenerResumenPresupuestario();
+  }
+  
+  if (action === 'obtener_mapa') {
+    return obtenerDatosMapa();
+  }
+  
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const hojas = ss.getSheets().map(s => s.getName());
+  return ContentService.createTextOutput(JSON.stringify({ status: 'API Online', hojas: hojas })).setMimeType(ContentService.MimeType.JSON);
+}
+
+function obtenerDatosMapa() {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const sheet = ss.getSheetByName('Ordenes_Mapa');
+    
+    if (!sheet) {
+      return crearRespuestaJSON({ success: false, error: "La hoja 'Ordenes_Mapa' no existe. Créala y añade los datos." });
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    if (data.length <= 1) {
+       return crearRespuestaJSON({ success: true, data: [] });
+    }
+    
+    const headers = data[0].map(h => h.toString().trim());
+    const xIndex = headers.findIndex(h => h.toUpperCase() === 'X');
+    const yIndex = headers.findIndex(h => h.toUpperCase() === 'Y');
+    
+    if (xIndex === -1 || yIndex === -1) {
+      return crearRespuestaJSON({ success: false, error: "No se encontraron columnas 'X' y 'Y' en la hoja." });
+    }
+    
+    const resultados = [];
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      // En Ecuador, X (Longitud) es aprox -79/-80 y Y (Latitud) es aprox -2. Leaflet usa [Lat, Lng], por ende [Y, X]
+      const posX = parseFloat(row[xIndex]);
+      const posY = parseFloat(row[yIndex]);
+      
+      if (isNaN(posX) || isNaN(posY)) continue;
+      
+      const item = { x: posX, y: posY, info: {} };
+      
+      headers.forEach((header, index) => {
+        if (index !== xIndex && index !== yIndex && header !== '') {
+          item.info[header] = row[index];
+        }
+      });
+      resultados.push(item);
+    }
+    
+    return crearRespuestaJSON({ success: true, data: resultados });
+    
+  } catch (error) {
+    return crearRespuestaJSON({ success: false, error: error.toString() });
+  }
+}
+// 🔥 LÓGICA DE RENDIMIENTO UNIFICADA 🔥
+function obtenerResumenPresupuestario() {
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const hoy = new Date();
+    hoy.setHours(0,0,0,0);
+    
+    const totalesPorCuadrilla = {};
+    // Helper para procesar hojas
+    const procesarHoja = (nombreHoja, idxCuadrilla, idxPrecio) => {
+        const sheet = ss.getSheetByName(nombreHoja);
+        if (!sheet) return;
+        
+        const data = sheet.getDataRange().getValues();
+        // Empezar en i=1 (saltar encabezado)
+        for (let i = 1; i < data.length; i++) {
+          const row = data[i];
+          const fechaRow = new Date(row[0]); // Asumimos Fecha siempre en col A (0)
+          
+          if (esMismoDia(fechaRow, hoy)) {
+            const cuadrilla = row[idxCuadrilla];
+            const precio = parseFloat(row[idxPrecio]) || 0;
+            
+            if (cuadrilla && cuadrilla !== '') {
+              if (!totalesPorCuadrilla[cuadrilla]) {
+                totalesPorCuadrilla[cuadrilla] = 0;
+              }
+              totalesPorCuadrilla[cuadrilla] += precio;
+            }
+          }
+        }
+    };
+    // 1. Procesar Reconexion
+    // indices (0-based): Cuadrilla=2 (C), Precio=25 (Z)
+    procesarHoja('Reconexion', 2, 25);
+    // 2. Procesar Mantenimiento
+    // indices (0-based): Cuadrilla=2 (C), Precio=25 (Z)
+    // Nota: Confirma los índices basados en el appendRow de Mantenimiento arriba
+    // rowData Mantenimiento: [Fecha(0), Contrato(1), Cuadrilla(2)... Item(24), Precio(25), Obs(26)]
+    procesarHoja('Mantenimiento', 2, 25);
+    
+    // Convertir a Array ordenado
+    const resultado = Object.keys(totalesPorCuadrilla).map(key => ({
+      cuadrilla: key,
+      total: Number(totalesPorCuadrilla[key].toFixed(2))
+    })).sort((a, b) => b.total - a.total); 
+    
+    return crearRespuestaJSON({ 
+      success: true, 
+      data: resultado, 
+      fecha: hoy.toLocaleDateString() 
+    });
+    
+  } catch (error) {
+    return crearRespuestaJSON({ success: false, error: error.toString() });
+  }
+}
+function esMismoDia(d1, d2) {
+  return d1.getFullYear() === d2.getFullYear() &&
+         d1.getMonth() === d2.getMonth() &&
+         d1.getDate() === d2.getDate();
+}
+function crearRespuestaJSON(obj) {
+  return ContentService
+    .createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
