@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
-import { obtenerPuntosMapa } from '../services/api';
+import { obtenerPuntosMapaConCache } from '../services/api';
 import L from 'leaflet';
 
 // ICONOS EN FORMATO RAW (Garantiza que siempre se muestren sin depender de librerías externas)
@@ -47,6 +47,17 @@ const defaultIcon = new L.Icon({
 // Función auxiliar para obtener la dirección normalizada
 const obtenerDireccion = (info) => {
     return info["Dirección Producto"] || info["DirecciÃ³n Producto"] || "Sin Dirección";
+};
+
+// Función auxiliar para concatenar Unidad Operativa + Unidad de Trabajo
+// Solo devuelve valor si AMBAS columnas tienen datos
+const getUnidadTrabajoLabel = (info) => {
+    const unidadOp = info["Unidad Operativa"];
+    const unidadTrab = info["Unidad de Trabajo"];
+    if (unidadOp && unidadTrab && String(unidadOp).trim() !== '' && String(unidadTrab).trim() !== '') {
+        return `${String(unidadOp).trim()} - ${String(unidadTrab).trim()}`;
+    }
+    return null;
 };
 
 // Componente para ajustar los límites del mapa para que todos los pines se vean
@@ -118,7 +129,7 @@ function MapControls() {
     // Hemos movido estos controles más abajo para que no choquen con la barra de búsqueda en el top-right
     return (
         <>
-            <div style={{ position: 'absolute', top: '70px', right: '10px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'auto' }}>
+            <div style={{ position: 'absolute', top: '180px', right: '10px', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'auto' }}>
                 <button 
                     onClick={handleLocate} 
                     style={{ width: '40px', height: '40px', backgroundColor: 'white', border: '2px solid rgba(0,0,0,0.2)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 5px rgba(0,0,0,0.3)', padding: 0 }} 
@@ -154,7 +165,10 @@ const MapaOrdenesPage = () => {
     const [puntos, setPuntos] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [fuenteDatosMapa, setFuenteDatosMapa] = useState('online');
+    const [cacheDesactualizado, setCacheDesactualizado] = useState(false);
     const [filtroTipoTarea, setFiltroTipoTarea] = useState(""); 
+    const [filtroUnidadTrabajo, setFiltroUnidadTrabajo] = useState("");
     
     // Nueveos estados
     const [tipoBusqueda, setTipoBusqueda] = useState("Producto");
@@ -173,11 +187,14 @@ const MapaOrdenesPage = () => {
     useEffect(() => {
         const cargarPuntos = async () => {
             setLoading(true);
-            const response = await obtenerPuntosMapa();
+            const response = await obtenerPuntosMapaConCache();
             if (response.success) {
+                setFuenteDatosMapa(response.source || 'online');
+                setCacheDesactualizado(Boolean(response.stale));
                 if (response.data.length === 0) {
                     setError("No se encontraron puntos con coordenadas X y Y.");
                 } else {
+                    setError(null);
                     setPuntos(response.data);
                 }
             } else {
@@ -192,10 +209,18 @@ const MapaOrdenesPage = () => {
     // Extraer los tipos de tarea únicos para el filtro de forma dinámica
     const tiposTareaUnicos = [...new Set(puntos.map(p => p.info["Tipo Tarea"]).filter(Boolean))];
 
-    // Filtrar los puntos basados en el tipo de tarea y la búsqueda
+    // Extraer las unidades de trabajo únicas (concatenación de Unidad Operativa + Unidad de Trabajo) — solo si ambas existen
+    const unidadesTrabajoUnicas = [...new Set(puntos.map(p => getUnidadTrabajoLabel(p.info)).filter(Boolean))].sort();
+
+    // Filtrar los puntos basados en el tipo de tarea, unidad de trabajo y la búsqueda
     const puntosFiltrados = puntos.filter(p => {
         // Filtro por tipo tarea
         if (filtroTipoTarea && p.info["Tipo Tarea"] !== filtroTipoTarea) {
+            return false;
+        }
+
+        // Filtro por unidad de trabajo (concatenación Unidad Operativa - Unidad de Trabajo)
+        if (filtroUnidadTrabajo && getUnidadTrabajoLabel(p.info) !== filtroUnidadTrabajo) {
             return false;
         }
 
@@ -217,8 +242,14 @@ const MapaOrdenesPage = () => {
     return (
         <div className="formulario active" style={{ maxWidth: '100%', padding: '10px' }}>
             <header>
-                <h1>Mapa de Órdenes Centralizado</h1>
-                <p>Ubicaciones cargadas desde Google Sheets</p>
+                <h1>Mapa de Órdenes</h1>
+                
+                {fuenteDatosMapa === 'cache' && (
+                    <p style={{ marginTop: '8px', color: '#92400e', fontWeight: '600' }}>
+                        Modo sin conexión: mostrando datos guardados localmente
+                        {cacheDesactualizado ? ' (cache de más de 24h).' : '.'}
+                    </p>
+                )}
                 <Link to="/" className="btn-volver">← Volver al Menú</Link>
             </header>
 
@@ -243,9 +274,11 @@ const MapaOrdenesPage = () => {
                                 </select>
                                 <input 
                                     type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     placeholder="Ej: 188669"
                                     value={valorBusqueda}
-                                    onChange={(e) => setValorBusqueda(e.target.value)}
+                                    onChange={(e) => setValorBusqueda(e.target.value.replace(/[^0-9]/g, ''))}
                                     style={{ padding: '8px 12px', border: 'none', outline: 'none', minWidth: '150px', flex: 1, backgroundColor: '#e5e7eb' }}
                                 />
                                 <div style={{ padding: '8px 15px', backgroundColor: '#e5e7eb', display: 'flex', alignItems: 'center' }}>
@@ -255,19 +288,38 @@ const MapaOrdenesPage = () => {
                                 </div>
                             </div>
 
-                            {/* Dropdown Tipo Tarea (Top Right) */}
-                            <div style={{ pointerEvents: 'auto', backgroundColor: '#e5e7eb', borderRadius: '4px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', border: '1px solid #d1d5db' }}>
-                                <select 
-                                    id="filtro-tipo" 
-                                    value={filtroTipoTarea} 
-                                    onChange={(e) => setFiltroTipoTarea(e.target.value)}
-                                    style={{ padding: '8px 15px', border: 'none', background: 'transparent', outline: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#4b5563', textTransform: 'uppercase', appearance: 'none', paddingRight: '30px', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>')` }}
-                                >
-                                    <option value="">TODAS ({puntos.length})</option>
-                                    {tiposTareaUnicos.map((tipo, idx) => (
-                                        <option key={idx} value={tipo}>{tipo}</option>
-                                    ))}
-                                </select>
+                            {/* Dropdowns Tipo Tarea y Unidad de Trabajo (Top Right, apilados) */}
+                            <div style={{ pointerEvents: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <div style={{ backgroundColor: '#e5e7eb', borderRadius: '4px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', border: '1px solid #d1d5db' }}>
+                                    <select 
+                                        id="filtro-tipo" 
+                                        value={filtroTipoTarea} 
+                                        onChange={(e) => setFiltroTipoTarea(e.target.value)}
+                                        style={{ padding: '8px 15px', border: 'none', background: 'transparent', outline: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#4b5563', appearance: 'none', paddingRight: '30px', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>')` }}
+                                    >
+                                        <option value="">Todos los tipos de trabajo ({puntos.length})</option>
+                                        {tiposTareaUnicos.map((tipo, idx) => (
+                                            <option key={idx} value={tipo}>{tipo}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* Dropdown Unidad de Trabajo — solo se renderiza si hay datos */}
+                                {unidadesTrabajoUnicas.length > 0 && (
+                                    <div style={{ backgroundColor: '#e5e7eb', borderRadius: '4px', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', border: '1px solid #d1d5db' }}>
+                                        <select 
+                                            id="filtro-unidad-trabajo" 
+                                            value={filtroUnidadTrabajo} 
+                                            onChange={(e) => setFiltroUnidadTrabajo(e.target.value)}
+                                            style={{ padding: '8px 15px', border: 'none', background: 'transparent', outline: 'none', cursor: 'pointer', fontWeight: 'bold', color: '#4b5563', appearance: 'none', paddingRight: '30px', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center', backgroundImage: `url('data:image/svg+xml;utf8,<svg fill="black" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/><path d="M0 0h24v24H0z" fill="none"/></svg>')` }}
+                                        >
+                                            <option value="">Todas las unidades de trabajo</option>
+                                            {unidadesTrabajoUnicas.map((unidad, idx) => (
+                                                <option key={idx} value={unidad}>{unidad}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -340,7 +392,9 @@ const MapaOrdenesPage = () => {
                                     <div style={{ display: 'flex', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #d1d5db', padding: '4px 12px', width: '250px' }}>
                                         <input 
                                             type="text"
-                                            placeholder="Buscar por número de orden..."
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            placeholder="Buscar orden..."
                                             style={{ border: 'none', outline: 'none', width: '100%', fontSize: '0.9rem' }}
                                         />
                                     </div>
@@ -364,10 +418,7 @@ const MapaOrdenesPage = () => {
                                                     <div style={{ fontSize: '0.85rem', color: '#4b5563' }}>
                                                         <span style={{ color: '#6b7280' }}>Actividad:</span> {p.info["Actividad"]}
                                                     </div>
-                                                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                                        <input type="checkbox" id={`listo-${idx}`} />
-                                                        <label htmlFor={`listo-${idx}`} style={{ fontSize: '0.85rem', color: '#374151' }}>Listo</label>
-                                                    </div>
+
                                                 </div>
                                                 <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#6b7280', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', minWidth: '100px' }}>
                                                     <div style={{ marginBottom: '2px' }}>producto . contrato</div>
@@ -387,9 +438,7 @@ const MapaOrdenesPage = () => {
                     </div>
                 )}
             </div>
-            <div style={{ marginTop: '15px', fontSize: '0.9rem', color: '#666', textAlign: 'center' }}>
-                <p>Las coordenadas se obtienen del archivo Excel pegado en la hoja <strong>Ordenes_Mapa</strong> de Google Sheets.</p>
-            </div>
+
         </div>
     );
 };

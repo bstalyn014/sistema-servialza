@@ -1,5 +1,6 @@
 // Google Apps Script - Sistema Técnico Completo
 const SHEET_ID = '18FhKZKdwUjFkt2N9cnTfeCwIk2W6e0n-AHI7CdIaJXI'; 
+const MAPA_SHEET_ID = '16z5JwHsdb9OroBvk7q_JwpDIEX6ehC7tD4Mg_Kv9fGM';
 // Datos de precios para items de cobro (Reconexión + Mantenimiento)
 const itemsCobroData = [
     // --- RECONEXIÓN ---
@@ -267,43 +268,48 @@ function doGet(e) {
 
 function obtenerDatosMapa() {
   try {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
-    const sheet = ss.getSheetByName('Ordenes_Mapa');
+    // Usar el spreadsheet dedicado exclusivamente al mapa
+    const ss = SpreadsheetApp.openById(MAPA_SHEET_ID);
+    const allSheets = ss.getSheets();
     
-    if (!sheet) {
-      return crearRespuestaJSON({ success: false, error: "La hoja 'Ordenes_Mapa' no existe. Créala y añade los datos." });
-    }
+    // Filtrar solo hojas que empiecen con "Ordenes_Mapa"
+    const mapSheets = allSheets.filter(s => s.getName().startsWith('Ordenes_Mapa'));
     
-    const data = sheet.getDataRange().getValues();
-    if (data.length <= 1) {
-       return crearRespuestaJSON({ success: true, data: [] });
-    }
-    
-    const headers = data[0].map(h => h.toString().trim());
-    const xIndex = headers.findIndex(h => h.toUpperCase() === 'X');
-    const yIndex = headers.findIndex(h => h.toUpperCase() === 'Y');
-    
-    if (xIndex === -1 || yIndex === -1) {
-      return crearRespuestaJSON({ success: false, error: "No se encontraron columnas 'X' y 'Y' en la hoja." });
+    if (mapSheets.length === 0) {
+      return crearRespuestaJSON({ success: false, error: "No se encontraron hojas que empiecen con 'Ordenes_Mapa' en el spreadsheet del mapa." });
     }
     
     const resultados = [];
-    for (let i = 1; i < data.length; i++) {
-      const row = data[i];
-      // En Ecuador, X (Longitud) es aprox -79/-80 y Y (Latitud) es aprox -2. Leaflet usa [Lat, Lng], por ende [Y, X]
-      const posX = parseFloat(row[xIndex]);
-      const posY = parseFloat(row[yIndex]);
+    
+    for (const sheet of mapSheets) {
+      const data = sheet.getDataRange().getValues();
+      if (data.length <= 1) continue; // Hoja vacía o solo con encabezados
       
-      if (isNaN(posX) || isNaN(posY)) continue;
+      // Cada hoja tiene sus propios headers (por si el orden de columnas varía)
+      const localHeaders = data[0].map(h => h.toString().trim());
+      const localXIndex = localHeaders.findIndex(h => h.toUpperCase() === 'X');
+      const localYIndex = localHeaders.findIndex(h => h.toUpperCase() === 'Y');
       
-      const item = { x: posX, y: posY, info: {} };
+      // Si esta hoja no tiene columnas X/Y, la saltamos sin error
+      if (localXIndex === -1 || localYIndex === -1) continue;
       
-      headers.forEach((header, index) => {
-        if (index !== xIndex && index !== yIndex && header !== '') {
-          item.info[header] = row[index];
-        }
-      });
-      resultados.push(item);
+      for (let i = 1; i < data.length; i++) {
+        const row = data[i];
+        // En Ecuador, X (Longitud) es aprox -79/-80 y Y (Latitud) es aprox -2. Leaflet usa [Lat, Lng], por ende [Y, X]
+        const posX = parseFloat(row[localXIndex]);
+        const posY = parseFloat(row[localYIndex]);
+        
+        if (isNaN(posX) || isNaN(posY)) continue;
+        
+        const item = { x: posX, y: posY, info: {} };
+        
+        localHeaders.forEach((header, index) => {
+          if (index !== localXIndex && index !== localYIndex && header !== '') {
+            item.info[header] = row[index];
+          }
+        });
+        resultados.push(item);
+      }
     }
     
     return crearRespuestaJSON({ success: true, data: resultados });
